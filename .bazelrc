@@ -1,0 +1,27 @@
+# `.bazelrc` is a Bazel configuration file.
+# https://bazel.build/docs/best-practices#bazelrc-file
+
+# General
+build --verbose_failures
+build --announce_rc
+build --show_task_finish
+build --show_timestamps
+build --spawn_strategy=standalone
+
+# CI settings
+build:ci --color=no
+build:ci --curses=no
+
+# Enable rustfmt for all targets in the workspace
+# build --@rules_rust//:rustfmt.toml=//crates:rustfmt.toml
+build:rustfmt --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect
+build:rustfmt --output_groups=+rustfmt_checks
+
+# Enable clippy for all targets in the workspace
+# build --@rules_rust//:clippy.toml=//crates:clippy.toml
+build:clippy --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect
+build:clippy --output_groups=+clippy_checks
+
+# This import should always be last to allow users to override
+# settings for local development.
+try-import %workspace%/.user.bazelrc
