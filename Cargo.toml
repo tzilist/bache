@@ -13,12 +13,17 @@ name = "bache"
 path = "src/main.rs"
 
 [dependencies]
+bytes = "1"
 clap = { version = "3.1", features = ["derive", "env"] }
 color-eyre = "0.6"
 dotenv = "0.15"
+enum_dispatch = "0.3"
 eyre = "0.6"
+futures = "0.3"
+once_cell = "1"
 opentelemetry = { version = "0.17", features = ["rt-tokio"] }
 opentelemetry-otlp = "0.10"
+moka = { version = "0.8", features = ["future"] }
 prost = "0.10"
 prost-types = "0.10"
 stable-eyre = "0.2"

@@ -3,7 +3,10 @@ use std::net::SocketAddr;
 use eyre::WrapErr;
 use tonic::transport::Server;
 
-use crate::config::Args;
+use crate::{
+    config::{Args, ServerConfig},
+    tracing,
+};
 
 fn create_socket_address(hostname: &str, port: u32) -> eyre::Result<SocketAddr> {
     format!("{hostname}:{port}").parse().wrap_err(
@@ -19,14 +22,20 @@ async fn create_shutdown_signal_listener() {
 }
 
 pub async fn start(args: Args) -> eyre::Result<()> {
-    let addr = create_socket_address(
-        &args.server_config.grpc_hostname,
-        args.server_config.grpc_port,
-    )?;
+    let _tracing = tracing::init(&args.tracing_config)?;
+
+    let ServerConfig {
+        grpc_hostname,
+        grpc_port,
+        disable_grpc_reflection,
+        ..
+    } = args.server_config;
+
+    let addr = create_socket_address(&grpc_hostname, grpc_port)?;
 
     let (_health_reporter, health_service) = tonic_health::server::health_reporter();
 
-    let reflection_service = if args.server_config.disable_grpc_reflection {
+    let reflection_service = if disable_grpc_reflection {
         None
     } else {
         Some(

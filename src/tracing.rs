@@ -83,12 +83,6 @@ pub struct TracingConfig {
     pub open_telemetry_config: OpenTelemetryConfig,
 }
 
-impl Drop for TracingConfig {
-    fn drop(&mut self) {
-        global::shutdown_tracer_provider();
-    }
-}
-
 fn create_opentelemetry_layer(otel_config: &OpenTelemetryConfig) -> eyre::Result<Tracer> {
     opentelemetry_otlp::new_pipeline()
         .tracing()
@@ -111,7 +105,16 @@ fn create_opentelemetry_layer(otel_config: &OpenTelemetryConfig) -> eyre::Result
         .wrap_err("Failed to create OpenTelemetry tracing layer")
 }
 
-pub fn init(config: &TracingConfig) -> eyre::Result<()> {
+/// Unit struct, used to shutdown the global tracing-subscriber when it is dropped
+pub struct ShutdownGuard;
+
+impl Drop for ShutdownGuard {
+    fn drop(&mut self) {
+        global::shutdown_tracer_provider();
+    }
+}
+
+pub fn init(config: &TracingConfig) -> eyre::Result<ShutdownGuard> {
     // nice errors for humans
     if !config.logging_config.no_color {
         color_eyre::install()?;
@@ -161,5 +164,5 @@ pub fn init(config: &TracingConfig) -> eyre::Result<()> {
         tracing::debug!("Logging successfully initialized");
     }
 
-    Ok(())
+    Ok(ShutdownGuard)
 }
