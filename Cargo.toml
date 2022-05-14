@@ -1,0 +1,32 @@
+[package]
+name = "bache"
+author = "Ted Zilist tzilist@gmail.com"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "bache"
+path = "src/lib.rs"
+
+[[bin]]
+name = "bache"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "3.1", features = ["derive", "env"] }
+color-eyre = "0.6"
+dotenv = "0.15"
+eyre = "0.6"
+opentelemetry = { version = "0.17", features = ["rt-tokio"] }
+opentelemetry-otlp = "0.10"
+stable-eyre = "0.2"
+tokio = { version = "1.18", features = ["full"] }
+tonic = { version = "0.7", features = ["compression", "transport", "tls", "tls-roots"] }
+tracing = "0.1"
+tracing-opentelemetry = "0.17"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+[build-dependencies]
+eyre = "0.6"
+glob = "0.3"
+tonic-build = { version = "0.7", features = ["compression"] }
