@@ -66,18 +66,18 @@ crates_repository(
             },
             build_script_tools = ["@com_google_protobuf//:protoc"],
         )],
-        # "tonic-health": [crate.annotation(
-        #     build_script_env = {
-        #         "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
-        #     },
-        #     build_script_tools = ["@com_google_protobuf//:protoc"],
-        # )],
-        # "tonic-reflection": [crate.annotation(
-        #     build_script_env = {
-        #         "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
-        #     },
-        #     build_script_tools = ["@com_google_protobuf//:protoc"],
-        # )],
+        "tonic-health": [crate.annotation(
+            build_script_env = {
+                "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
+            },
+            build_script_tools = ["@com_google_protobuf//:protoc"],
+        )],
+        "tonic-reflection": [crate.annotation(
+            build_script_env = {
+                "PROTOC": "$(execpath @com_google_protobuf//:protoc)",
+            },
+            build_script_tools = ["@com_google_protobuf//:protoc"],
+        )],
     },
     generator = "@cargo_bazel_bootstrap//:cargo-bazel",
     lockfile = "//:Cargo.lock",

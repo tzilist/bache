@@ -19,9 +19,13 @@ dotenv = "0.15"
 eyre = "0.6"
 opentelemetry = { version = "0.17", features = ["rt-tokio"] }
 opentelemetry-otlp = "0.10"
+prost = "0.10"
+prost-types = "0.10"
 stable-eyre = "0.2"
 tokio = { version = "1.18", features = ["full"] }
 tonic = { version = "0.7", features = ["compression", "transport", "tls", "tls-roots"] }
+tonic-health = "0.6"
+tonic-reflection = "0.4"
 tracing = "0.1"
 tracing-opentelemetry = "0.17"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
