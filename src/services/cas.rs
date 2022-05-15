@@ -1,22 +1,35 @@
-use std::{collections::HashMap, pin::Pin};
+use std::pin::Pin;
 
-use futures::stream::Stream;
-use tonic::{async_trait, Request, Response, Status};
+use async_trait::async_trait;
+use futures::stream::{BoxStream, FuturesUnordered, Stream};
+use tonic::{Request, Response, Status};
 use tracing::instrument;
 
-use crate::protos::build::bazel::remote::execution::v2::{
-    content_addressable_storage_server::ContentAddressableStorage, BatchReadBlobsRequest,
-    BatchReadBlobsResponse, BatchUpdateBlobsRequest, BatchUpdateBlobsResponse,
-    FindMissingBlobsRequest, FindMissingBlobsResponse, GetTreeRequest, GetTreeResponse,
+use crate::{
+    domain::{DigestInfo, InstanceName},
+    errors::Error,
+    infrastructure::{Store, StoreManager},
+    protos::build::bazel::remote::execution::v2::{
+        content_addressable_storage_server::{
+            ContentAddressableStorage, ContentAddressableStorageServer,
+        },
+        BatchReadBlobsRequest, BatchReadBlobsResponse, BatchUpdateBlobsRequest,
+        BatchUpdateBlobsResponse, Digest, FindMissingBlobsRequest, FindMissingBlobsResponse,
+        GetTreeRequest, GetTreeResponse,
+    },
 };
 
 pub struct ContentAddressableStorageService {
-    stores: HashMap<(), ()>,
+    stores: StoreManager,
 }
 
 impl ContentAddressableStorageService {
-    pub fn new(stores: HashMap<(), ()>) -> Self {
+    pub fn new(stores: StoreManager) -> Self {
         Self { stores }
+    }
+
+    pub fn into_server(self) -> ContentAddressableStorageServer<ContentAddressableStorageService> {
+        ContentAddressableStorageServer::new(self)
     }
 }
 
@@ -25,9 +38,40 @@ impl ContentAddressableStorage for ContentAddressableStorageService {
     #[instrument(err, skip(self))]
     async fn find_missing_blobs(
         &self,
-        _request: Request<FindMissingBlobsRequest>,
+        request: Request<FindMissingBlobsRequest>,
     ) -> Result<Response<FindMissingBlobsResponse>, Status> {
-        Ok(Response::new(FindMissingBlobsResponse::default()))
+        let FindMissingBlobsRequest {
+            instance_name,
+            blob_digests,
+        } = request.into_inner();
+
+        let instance_name = InstanceName::new(instance_name);
+        let store = self.stores.get_store_by_instance_name(&instance_name)?;
+
+        let join_handles = FuturesUnordered::new();
+        for digest in blob_digests {
+            let digest: DigestInfo = digest.try_into()?;
+            let store = store.clone();
+
+            join_handles.push(tokio::spawn(async move {
+                if store.contains_key(&digest).await {
+                    None
+                } else {
+                    Some(digest)
+                }
+            }));
+        }
+
+        let missing_blob_digests = futures::future::try_join_all(join_handles)
+            .await
+            .map_err(Error::from)?
+            .into_iter()
+            .filter_map(|digest_info| digest_info.map(Digest::from))
+            .collect();
+
+        Ok(Response::new(FindMissingBlobsResponse {
+            missing_blob_digests,
+        }))
     }
 
     #[instrument(err, skip(self))]
@@ -41,12 +85,42 @@ impl ContentAddressableStorage for ContentAddressableStorageService {
     #[instrument(err, skip(self))]
     async fn batch_read_blobs(
         &self,
-        _request: Request<BatchReadBlobsRequest>,
+        request: Request<BatchReadBlobsRequest>,
     ) -> Result<Response<BatchReadBlobsResponse>, Status> {
+        let BatchReadBlobsRequest {
+            instance_name,
+            digests,
+            acceptable_compressors: _,
+        } = request.into_inner();
+
+        let instance_name = InstanceName::new(instance_name);
+        let store = self.stores.get_store_by_instance_name(&instance_name)?;
+
+        // let join_handles = FuturesUnordered::new();
+
+        for digest in digests {
+            let digest: DigestInfo = digest.try_into()?;
+            let store = store.clone();
+
+            // join_handles.push(tokio::spawn(async move {
+            //     let size_bytes: usize = digest.size_bytes.try_into().map_err(|_| {
+            //         Status::invalid_argument(
+            //             "digest's `size_bytes` could not be converted into a valid usize",
+            //         )
+            //     })?;
+
+            //     store
+            //         .get_part_unchunked(digest, 0, None, Some(size_bytes))
+            //         .await
+            // }))
+        }
+
+        // futures::future::try_join_all(join_handles);
+
         Ok(Response::new(BatchReadBlobsResponse::default()))
     }
 
-    type GetTreeStream = Pin<Box<dyn Stream<Item = Result<GetTreeResponse, Status>> + Send>>;
+    type GetTreeStream = BoxStream<'static, Result<GetTreeResponse, Status>>;
 
     #[instrument(err, skip(self))]
     async fn get_tree(

@@ -1,8 +1,10 @@
 [package]
 name = "bache"
-author = "Ted Zilist tzilist@gmail.com"
+authors = ["Ted Zilist <tzilist@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
+description = "A WIP Bazel remote cache"
+readme = "README.md"
 
 [lib]
 name = "bache"
@@ -13,6 +15,7 @@ name = "bache"
 path = "src/main.rs"
 
 [dependencies]
+async-trait = "0.1"
 bytes = "1"
 clap = { version = "3.1", features = ["derive", "env"] }
 color-eyre = "0.6"
@@ -20,6 +23,7 @@ dotenv = "0.15"
 enum_dispatch = "0.3"
 eyre = "0.6"
 futures = "0.3"
+hex = "0.4"
 once_cell = "1"
 opentelemetry = { version = "0.17", features = ["rt-tokio"] }
 opentelemetry-otlp = "0.10"
@@ -27,10 +31,12 @@ moka = { version = "0.8", features = ["future"] }
 prost = "0.10"
 prost-types = "0.10"
 stable-eyre = "0.2"
+thiserror = "1"
 tokio = { version = "1.18", features = ["full"] }
 tonic = { version = "0.7", features = ["compression", "transport", "tls", "tls-roots"] }
 tonic-health = "0.6"
 tonic-reflection = "0.4"
+uuid = "1"
 tracing = "0.1"
 tracing-opentelemetry = "0.17"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
