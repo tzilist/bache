@@ -33,6 +33,18 @@ impl Store for MemoryStore {
         offset: usize,
         limit: usize,
     ) -> Result<Bytes, Error> {
-        todo!()
+        let bytes = self
+            .cache
+            .get(key)
+            .ok_or_else(|| Error::DigestInfoNotFound(key.hash()))?;
+
+        // take the lowest of the limit of bits sent, or, the remaining bytes left
+        let length_bytes_to_send = limit.min(bytes.len() - offset);
+
+        if length_bytes_to_send > 0 {
+            Ok(bytes.slice(offset..(offset + length_bytes_to_send)))
+        } else {
+            Ok(Bytes::new())
+        }
     }
 }

@@ -33,6 +33,7 @@ prost-types = "0.10"
 stable-eyre = "0.2"
 thiserror = "1"
 tokio = { version = "1.18", features = ["full"] }
+tokio-stream = "0.1"
 tonic = { version = "0.7", features = ["compression", "transport", "tls", "tls-roots"] }
 tonic-health = "0.6"
 tonic-reflection = "0.4"

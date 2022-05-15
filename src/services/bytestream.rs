@@ -1,13 +1,10 @@
 use async_trait::async_trait;
-use futures::{
-    stream::{self, BoxStream},
-    Stream,
-};
+use futures::stream::BoxStream;
 use tonic::{Request, Response, Status, Streaming};
 
 use crate::{
-    domain::ResourceName,
-    infrastructure::StoreManager,
+    domain::{DigestInfo, ResourceName},
+    infrastructure::{Store, StoreManager},
     protos::google::bytestream::{
         byte_stream_server::{ByteStream, ByteStreamServer},
         QueryWriteStatusRequest, QueryWriteStatusResponse, ReadRequest, ReadResponse, WriteRequest,
@@ -17,19 +14,25 @@ use crate::{
 
 pub struct ByteStreamService {
     stores: StoreManager,
-    max_bytes_per_stream: usize,
 }
 
 impl ByteStreamService {
-    pub fn new(stores: StoreManager, max_bytes_per_stream: usize) -> Self {
-        Self {
-            stores,
-            max_bytes_per_stream,
-        }
+    pub fn new(stores: StoreManager) -> Self {
+        Self { stores }
     }
 
     pub fn into_server(self) -> ByteStreamServer<Self> {
         ByteStreamServer::new(self)
+    }
+
+    /// small utility function to create a stream and send a read response
+    fn stream_one_read_response(
+        &self,
+        read_response: ReadResponse,
+    ) -> Result<Response<BoxStream<'static, Result<ReadResponse, Status>>>, Status> {
+        Ok(Response::new(Box::pin(tokio_stream::once(Ok(
+            read_response,
+        )))))
     }
 }
 
@@ -47,27 +50,36 @@ impl ByteStream for ByteStreamService {
             read_limit,
         } = request.into_inner();
 
-        let read_limit: usize = read_limit.try_into().map_err(|e| {
+        let read_limit: usize = read_limit.try_into().map_err(|_| {
             Status::invalid_argument("`read_limit` could not be converted into a valid usize")
         })?;
 
         if read_limit == 0 {
-            return Ok(Response::new(Box::pin(stream::once(async {
-                Ok(ReadResponse { data: Vec::new() })
-            }))));
+            return self.stream_one_read_response(ReadResponse::default());
         }
 
-        let read_offset: usize = read_offset.try_into().map_err(|e| {
+        let read_offset: usize = read_offset.try_into().map_err(|_| {
             Status::invalid_argument("`read_limit` could not be converted into a valid usize")
         })?;
 
         let resource_name = ResourceName::try_from(resource_name)?;
+        let digest_info = DigestInfo::try_new(&resource_name.hash, resource_name.size)?;
 
         let store = self
             .stores
-            .get_store_by_instance_name(&resource_name.instance_name);
+            .get_store_by_instance_name(&resource_name.instance_name)?;
 
-        todo!()
+        let bytes_chunk = store
+            .get_chunk(&digest_info, read_offset, read_limit)
+            .await?;
+
+        if bytes_chunk.is_empty() {
+            self.stream_one_read_response(ReadResponse::default())
+        } else {
+            self.stream_one_read_response(ReadResponse {
+                data: bytes_chunk.to_vec(),
+            })
+        }
     }
 
     async fn write(

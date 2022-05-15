@@ -1,7 +1,7 @@
-mod digest;
+mod digest_info;
 mod instance_name;
 mod resource_name;
 
-pub use digest::DigestInfo;
-pub use instance_name::InstanceName;
-pub use resource_name::ResourceName;
+pub use digest_info::*;
+pub use instance_name::*;
+pub use resource_name::*;

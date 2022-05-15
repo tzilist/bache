@@ -3,7 +3,7 @@ use thiserror::Error;
 use tokio::task::JoinError;
 use tonic::{Code, Status};
 
-use crate::domain::InstanceName;
+use crate::domain::{DigestHash, InstanceName};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -13,11 +13,20 @@ pub enum Error {
     #[error(transparent)]
     Tokio(#[from] JoinError),
 
-    #[error("Store {0} was not found")]
+    #[error("Store for `instance_name` of {0} was not found")]
     StoreNotFound(InstanceName),
 
-    #[error("{0} is not a valid resource name")]
+    #[error("Digest with hash {0} was not found")]
+    DigestInfoNotFound(DigestHash),
+
+    #[error("Invalid digest part(s), {0}")]
+    InvalidDigestParts(String),
+
+    #[error("`{0}` is not a valid resource name")]
     InvalidResourceName(String),
+
+    #[error("`{0}` could not be converted to a different int type")]
+    ConversionIntError(String),
 }
 
 impl From<Error> for tonic::Status {
@@ -56,12 +65,11 @@ impl From<Error> for tonic::Status {
                 "Tokio task failed to execute",
                 Bytes::from(join_error.to_string()),
             ),
-            Error::StoreNotFound(instance_name) => {
-                Status::internal(format!("Store {instance_name} was not found"))
-            }
-            Error::InvalidResourceName(resource_name) => {
-                Status::invalid_argument(format!("{resource_name} is not a valid resource name"))
-            }
+            err @ Error::StoreNotFound(_) => Status::internal(err.to_string()),
+            err @ Error::InvalidResourceName(_) => Status::invalid_argument(err.to_string()),
+            err @ Error::DigestInfoNotFound(_) => Status::not_found(err.to_string()),
+            err @ Error::ConversionIntError(_) => Status::invalid_argument(err.to_string()),
+            err @ Error::InvalidDigestParts(_) => Status::invalid_argument(err.to_string()),
         }
     }
 }
